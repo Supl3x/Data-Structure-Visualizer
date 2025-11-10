@@ -164,11 +164,16 @@ void RedBlackTree::setupUI()
             border: 2px solid #d0c5e8;
             border-radius: 8px;
             padding: 5px;
-            font-size: 11px;
+            font-size: 10px;
+            color: #2d1b69;
         }
         QListWidget::item {
-            padding: 8px;
+            padding: 6px;
             border-bottom: 1px solid #f0f0f0;
+            color: #2d1b69;
+        }
+        QListWidget::item:hover {
+            background-color: #f5f0ff;
         }
         QListWidget::item:selected {
             background-color: #e8e0ff;
@@ -425,6 +430,12 @@ void RedBlackTree::showSearchAlgorithm()
 
 void RedBlackTree::onInsertClicked()
 {
+    if (isAnimating) {
+        QMessageBox::warning(this, "Animation in Progress",
+                             "Please wait for the current operation to complete.");
+        return;
+    }
+
     QString text = inputField->text().trimmed();
     if (text.isEmpty()) {
         QMessageBox::warning(this, "Invalid Input", "Please enter a value.");
@@ -442,11 +453,16 @@ void RedBlackTree::onInsertClicked()
     insertNode(value);
     inputField->clear();
     inputField->setFocus();
-    update();
 }
 
 void RedBlackTree::onDeleteClicked()
 {
+    if (isAnimating) {
+        QMessageBox::warning(this, "Animation in Progress",
+                             "Please wait for the current operation to complete.");
+        return;
+    }
+
     if (root == NIL) {
         QMessageBox::warning(this, "Empty Tree", "Tree is empty.");
         return;
@@ -468,7 +484,6 @@ void RedBlackTree::onDeleteClicked()
 
     deleteNode(value);
     inputField->clear();
-    update();
 }
 
 void RedBlackTree::onSearchClicked()
@@ -509,14 +524,46 @@ void RedBlackTree::onClearClicked()
 
 void RedBlackTree::insertNode(int value)
 {
+    // Check for duplicate
+    if (findNode(root, value) != NIL) {
+        statusLabel->setText(QString("Value %1 already exists!").arg(value));
+        addHistory("INSERT", value, QString("Failed: Value %1 already exists").arg(value));
+        return;
+    }
+
+    isAnimating = true;
+    insertButton->setEnabled(false);
+    deleteButton->setEnabled(false);
+    searchButton->setEnabled(false);
+
+    statusLabel->setText(QString("Inserting %1...").arg(value));
+
     RBNode *node = new RBNode(value);
     node->left = node->right = NIL;
 
     root = BSTInsert(root, node);
-    fixInsert(node);
 
-    statusLabel->setText(QString("Inserted %1 successfully").arg(value));
-    addHistory("INSERT", value, QString("Node %1 inserted and tree rebalanced").arg(value));
+    QTimer::singleShot(500, this, [this, node, value]() {
+        node->isHighlighted = true;
+        statusLabel->setText("Fixing Red-Black properties...");
+        update();
+
+        QTimer::singleShot(800, this, [this, node, value]() {
+            fixInsert(node);
+            node->isHighlighted = false;
+
+            statusLabel->setText(QString("Successfully inserted %1").arg(value));
+            addHistory("INSERT", value, QString("Node %1 inserted and tree balanced").arg(value));
+
+            isAnimating = false;
+            insertButton->setEnabled(true);
+            deleteButton->setEnabled(true);
+            searchButton->setEnabled(true);
+            update();
+        });
+    });
+
+    update();
 }
 
 RBNode* RedBlackTree::BSTInsert(RBNode* root, RBNode* node)
@@ -583,48 +630,70 @@ void RedBlackTree::fixInsert(RBNode* node)
 
 void RedBlackTree::rotateLeft(RBNode* node)
 {
-    RBNode *rightChild = node->right;
-    node->right = rightChild->left;
+    if (!node || node->right == NIL) return;
 
-    if (rightChild->left != NIL) {
-        rightChild->left->parent = node;
-    }
+    statusLabel->setText("Performing left rotation...");
+    node->isRotating = true;
+    update();
 
-    rightChild->parent = node->parent;
+    QTimer::singleShot(600, this, [this, node]() {
+        RBNode *rightChild = node->right;
+        node->right = rightChild->left;
 
-    if (!node->parent) {
-        root = rightChild;
-    } else if (node == node->parent->left) {
-        node->parent->left = rightChild;
-    } else {
-        node->parent->right = rightChild;
-    }
+        if (rightChild->left != NIL) {
+            rightChild->left->parent = node;
+        }
 
-    rightChild->left = node;
-    node->parent = rightChild;
+        rightChild->parent = node->parent;
+
+        if (!node->parent) {
+            root = rightChild;
+        } else if (node == node->parent->left) {
+            node->parent->left = rightChild;
+        } else {
+            node->parent->right = rightChild;
+        }
+
+        rightChild->left = node;
+        node->parent = rightChild;
+
+        node->isRotating = false;
+        update();
+    });
 }
 
 void RedBlackTree::rotateRight(RBNode* node)
 {
-    RBNode *leftChild = node->left;
-    node->left = leftChild->right;
+    if (!node || node->left == NIL) return;
 
-    if (leftChild->right != NIL) {
-        leftChild->right->parent = node;
-    }
+    statusLabel->setText("Performing right rotation...");
+    node->isRotating = true;
+    update();
 
-    leftChild->parent = node->parent;
+    QTimer::singleShot(600, this, [this, node]() {
+        RBNode *leftChild = node->left;
+        node->left = leftChild->right;
 
-    if (!node->parent) {
-        root = leftChild;
-    } else if (node == node->parent->right) {
-        node->parent->right = leftChild;
-    } else {
-        node->parent->left = leftChild;
-    }
+        if (leftChild->right != NIL) {
+            leftChild->right->parent = node;
+        }
 
-    leftChild->right = node;
-    node->parent = leftChild;
+        leftChild->parent = node->parent;
+
+        if (!node->parent) {
+            root = leftChild;
+        } else if (node == node->parent->right) {
+            node->parent->right = leftChild;
+        } else {
+            node->parent->left = leftChild;
+        }
+
+        leftChild->right = node;
+        node->parent = leftChild;
+
+        node->isRotating = false;
+        update();
+    });
 }
 
 void RedBlackTree::deleteNode(int value)
@@ -636,9 +705,59 @@ void RedBlackTree::deleteNode(int value)
         return;
     }
 
-    // Simplified deletion (basic implementation)
-    statusLabel->setText(QString("Deleted %1 successfully").arg(value));
-    addHistory("DELETE", value, QString("Node %1 deleted and tree rebalanced").arg(value));
+    isAnimating = true;
+    insertButton->setEnabled(false);
+    deleteButton->setEnabled(false);
+    searchButton->setEnabled(false);
+
+    // Highlight node to be deleted
+    node->isHighlighted = true;
+    statusLabel->setText(QString("Deleting %1...").arg(value));
+    update();
+
+    QTimer::singleShot(800, this, [this, node, value]() {
+        root = deleteNodeHelper(root, value);
+
+        statusLabel->setText(QString("Successfully deleted %1").arg(value));
+        addHistory("DELETE", value, QString("Node %1 deleted and tree rebalanced").arg(value));
+
+        isAnimating = false;
+        insertButton->setEnabled(true);
+        deleteButton->setEnabled(true);
+        searchButton->setEnabled(true);
+        update();
+    });
+}
+
+RBNode* RedBlackTree::deleteNodeHelper(RBNode* node, int value)
+{
+    if (node == NIL) return NIL;
+
+    if (value < node->value) {
+        node->left = deleteNodeHelper(node->left, value);
+    } else if (value > node->value) {
+        node->right = deleteNodeHelper(node->right, value);
+    } else {
+        // Node found - delete it
+        if (node->left == NIL) {
+            RBNode* temp = node->right;
+            if (temp != NIL) temp->parent = node->parent;
+            delete node;
+            return temp;
+        } else if (node->right == NIL) {
+            RBNode* temp = node->left;
+            if (temp != NIL) temp->parent = node->parent;
+            delete node;
+            return temp;
+        }
+
+        // Node with two children
+        RBNode* successor = findMin(node->right);
+        node->value = successor->value;
+        node->right = deleteNodeHelper(node->right, successor->value);
+    }
+
+    return node;
 }
 
 void RedBlackTree::searchNode(int value)
@@ -781,23 +900,28 @@ void RedBlackTree::drawNode(QPainter &painter, RBNode *node)
 {
     if (node == NIL) return;
 
-    // Node circle
+    // Node circle - larger for rotating nodes
+    int radius = node->isRotating ? NODE_RADIUS + 5 : NODE_RADIUS;
+
     if (node->isHighlighted) {
         painter.setPen(QPen(QColor(255, 215, 0), 4));
         painter.setBrush(node->color == RED ? QColor(255, 150, 150) : QColor(100, 100, 100));
+    } else if (node->isRotating) {
+        painter.setPen(QPen(QColor(0, 200, 0), 4));
+        painter.setBrush(node->color == RED ? QColor(255, 100, 100) : QColor(80, 80, 80));
     } else {
         painter.setPen(QPen(Qt::black, 2));
         painter.setBrush(node->color == RED ? QColor(220, 53, 69) : QColor(52, 58, 64));
     }
 
-    painter.drawEllipse(QPoint(node->x, node->y), NODE_RADIUS, NODE_RADIUS);
+    painter.drawEllipse(QPoint(node->x, node->y), radius, radius);
 
     // Node value
     painter.setPen(Qt::white);
-    QFont font("Segoe UI", 13, QFont::Bold);
+    QFont font("Segoe UI", 12, QFont::Bold);
     painter.setFont(font);
-    painter.drawText(QRect(node->x - NODE_RADIUS, node->y - NODE_RADIUS,
-                           NODE_RADIUS * 2, NODE_RADIUS * 2),
+    painter.drawText(QRect(node->x - radius, node->y - radius,
+                           radius * 2, radius * 2),
                      Qt::AlignCenter, QString::number(node->value));
 }
 
