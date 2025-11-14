@@ -1,0 +1,27 @@
+# Ignore Qt build folders
+/build*/
+build/
+build-*/
+
+# Ignore CMake build files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Ignore Qt generated files
+*.user
+*.qmlc
+*.pro.user
+*.qrc.dep
+*.autosave
+*.obj
+*.o
+*.dll
+*.exe
+*.log
+*.cache
+
+# Ignore misc temporary files
+*.tmp
+*.bak
