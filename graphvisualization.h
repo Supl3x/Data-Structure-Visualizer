@@ -26,6 +26,7 @@
 #include <QMessageBox>
 #include <QResizeEvent>
 #include <QDateTime>
+#include <QRandomGenerator>
 #include <QtMath>
 #include <QGraphicsDropShadowEffect>
 #include "backbutton.h"
@@ -71,6 +72,8 @@ private slots:
     void onDeleteEdgeClicked();
     void onRemoveEdgeClicked();
     void onClearClicked();
+    void onRandomizeClicked();
+    void onRandomizeEdgeClicked();
     void onStartBFS();
     void onStartDFS();
     void onAnimationStep();
@@ -131,6 +134,8 @@ private:
     QPushButton *deleteEdgeButton;
 
     QPushButton *clearButton;
+    QPushButton *randomizeButton;
+    QPushButton *randomizeEdgeButton;
 
     // Right panel components - Chat box
     QGroupBox *traceGroup;

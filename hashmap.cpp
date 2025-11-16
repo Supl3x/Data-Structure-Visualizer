@@ -8,7 +8,8 @@
 HashMap::HashMap(int initialBucketCount, float maxLoadFactor)
     : buckets_(static_cast<size_t>(std::max(1, initialBucketCount))),
     numElements_(0),
-    maxLoadFactor_(maxLoadFactor) {
+    maxLoadFactor_(maxLoadFactor),
+    hasRehashed_(false) {
     stepHistory_.clear();
 }
 
@@ -83,6 +84,49 @@ int HashMap::indexFor(const QVariant &key, int bucketCount) const {
     return static_cast<int>(hashValue % static_cast<size_t>(bucketCount));
 }
 
+size_t HashMap::getHashValue(const QVariant &key) const {
+    size_t hashValue = 0;
+
+    // Use std::hash-like behavior to mirror unordered_map hashing
+    switch (key.type()) {
+    case QVariant::String: {
+        const std::string s = key.toString().toStdString();
+        hashValue = std::hash<std::string>{}(s);
+        break;
+    }
+    case QVariant::Int: {
+        const int v = key.toInt();
+        hashValue = std::hash<int>{}(v);
+        break;
+    }
+    case QVariant::Double: {
+        const double v = key.toDouble();
+        hashValue = std::hash<double>{}(v);
+        break;
+    }
+    case QVariant::Char: {
+        const QChar qc = key.toChar();
+        const char c = qc.toLatin1();
+        hashValue = std::hash<char>{}(c);
+        break;
+    }
+    default: {
+        // Try float explicitly if convertible
+        if (key.canConvert<float>()) {
+            const float v = key.toFloat();
+            hashValue = std::hash<float>{}(v);
+        } else {
+            // Fallback to string representation
+            const std::string s = key.toString().toStdString();
+            hashValue = std::hash<std::string>{}(s);
+        }
+        break;
+    }
+    }
+
+    return hashValue;
+}
+
 bool HashMap::validateType(const QVariant &value, DataType expectedType) const {
     switch (expectedType) {
     case STRING:
@@ -131,6 +175,11 @@ float HashMap::loadFactor() const {
 }
 
 void HashMap::maybeGrow() {
+    // Only rehash once - if we've already rehashed, don't do it again
+    if (hasRehashed_) {
+        return;
+    }
+    
     const float projected = (static_cast<float>(numElements_) + 1.0f)
     / static_cast<float>(buckets_.empty() ? 1 : buckets_.size());
     if (projected > maxLoadFactor_) {
@@ -140,6 +189,7 @@ void HashMap::maybeGrow() {
                     .arg(loadFactor(), 0, 'f', 2)
                     .arg(maxLoadFactor_, 0, 'f', 2));
         rehash(newCount);
+        hasRehashed_ = true;  // Mark that we've rehashed
     }
 }
 
@@ -157,14 +207,15 @@ bool HashMap::emplaceOrAssign(const QVariant &key, const QVariant &value, bool a
 
     // Use our custom indexFor method which shows the simple hash
     const int index = indexFor(key, bucketCountNow);
+    const size_t computedHash = getHashValue(key);
 
-    // Show hash calculation based on type
+    // Show hash calculation with computed hash value
     if (key.type() == QVariant::Int || key.type() == QVariant::Double) {
-        addStep(QString("📊 Compute: hash(%1) = %1").arg(keyStr));
-        addStep(QString("📐 Calculate: %1 % %2 = %3").arg(keyStr).arg(bucketCountNow).arg(index));
+        addStep(QString("📊 Compute hash(%1) = %2").arg(keyStr).arg(computedHash));
+        addStep(QString("📐 Calculate: %2 % %1 = %3").arg(bucketCountNow).arg(computedHash).arg(index));
     } else {
-        addStep(QString("📊 Compute hash for: \"%1\"").arg(keyStr));
-        addStep(QString("📐 Index = hash % %1 = %2").arg(bucketCountNow).arg(index));
+        addStep(QString("📊 Compute hash for: \"%1\" = %2").arg(keyStr).arg(computedHash));
+        addStep(QString("📐 Index = %2 % %1 = %3").arg(bucketCountNow).arg(computedHash).arg(index));
     }
     addStep(QStringLiteral("Visit bucket %1").arg(index));
 
@@ -224,14 +275,15 @@ std::optional<QVariant> HashMap::get(const QVariant &key) {
 
     // Use our custom indexFor method
     const int index = indexFor(key, bucketCountNow);
+    const size_t computedHash = getHashValue(key);
 
-    // Show hash calculation
+    // Show hash calculation with computed hash value
     if (key.type() == QVariant::Int || key.type() == QVariant::Double) {
-        addStep(QString("📊 Compute: hash(%1) = %1").arg(keyStr));
-        addStep(QString("📐 Calculate: %1 % %2 = %3").arg(keyStr).arg(bucketCountNow).arg(index));
+        addStep(QString("📊 Compute hash(%1) = %2").arg(keyStr).arg(computedHash));
+        addStep(QString("📐 Calculate: %2 % %1 = %3").arg(bucketCountNow).arg(computedHash).arg(index));
     } else {
-        addStep(QString("📊 Compute hash for: \"%1\"").arg(keyStr));
-        addStep(QString("📐 Index = hash % %1 = %2").arg(bucketCountNow).arg(index));
+        addStep(QString("📊 Compute hash for: \"%1\" = %2").arg(keyStr).arg(computedHash));
+        addStep(QString("📐 Index = %2 % %1 = %3").arg(bucketCountNow).arg(computedHash).arg(index));
     }
     addStep(QString("🎯 Visit bucket %1").arg(index));
 
@@ -267,14 +319,15 @@ bool HashMap::erase(const QVariant &key) {
 
     // Use our custom indexFor method
     const int index = indexFor(key, bucketCountNow);
+    const size_t computedHash = getHashValue(key);
 
-    // Show hash calculation for delete operation
+    // Show hash calculation for delete operation with computed hash value
     if (key.type() == QVariant::Int || key.type() == QVariant::Double) {
-        addStep(QString("📊 Compute: hash(%1) = %1").arg(keyStr));
-        addStep(QString("📐 Calculate: %1 % %2 = %3").arg(keyStr).arg(bucketCountNow).arg(index));
+        addStep(QString("📊 Compute hash(%1) = %2").arg(keyStr).arg(computedHash));
+        addStep(QString("📐 Calculate: %2 % %1 = %3").arg(bucketCountNow).arg(computedHash).arg(index));
     } else {
-        addStep(QString("📊 Compute hash for: \"%1\"").arg(keyStr));
-        addStep(QString("📐 Index = hash % %1 = %2").arg(bucketCountNow).arg(index));
+        addStep(QString("📊 Compute hash for: \"%1\" = %2").arg(keyStr).arg(computedHash));
+        addStep(QString("📐 Index = %2 % %1 = %3").arg(bucketCountNow).arg(computedHash).arg(index));
     }
     addStep(QStringLiteral("Visit bucket %1").arg(index));
 
@@ -312,6 +365,7 @@ void HashMap::clear() {
         chain.clear();
     }
     numElements_ = 0;
+    hasRehashed_ = false;  // Reset rehash flag when clearing
     addStep(QStringLiteral("Cleared all buckets"));
 }
 

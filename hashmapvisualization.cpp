@@ -10,9 +10,10 @@ const int HashMapVisualization::MAX_VISIBLE_BUCKETS = 12;
 
 HashMapVisualization::HashMapVisualization(QWidget *parent)
     : QWidget(parent)
-    , hashMap(new HashMap(8, 10.0f))  // 8 buckets, high load factor to prevent rehashing
+    , hashMap(new HashMap(8, 0.75f))  // 8 buckets, normal load factor (0.75) to enable rehashing
     , animationTimer(new QTimer(this))
     , highlightRect(nullptr)
+    , previousBucketCount(8)
 {
     setupUI();
     updateVisualization();
@@ -116,7 +117,7 @@ void HashMapVisualization::setupVisualizationArea()
     leftLayout->addWidget(visualizationView, 1);
 
     // Bottom note about bucket limitation
-    QLabel *bucketNote = new QLabel(QString("* Buckets shown: %1").arg(hashMap->bucketCount()));
+    bucketNote = new QLabel(QString("* Buckets shown: %1").arg(hashMap->bucketCount()));
     bucketNote->setStyleSheet(R"(
         QLabel {
             color: #7f8c8d;
@@ -142,6 +143,9 @@ void HashMapVisualization::setupStatsAndControls()
     sizeLabel = new QLabel("Size: 0");
     bucketCountLabel = new QLabel(QString("Buckets: %1").arg(hashMap->bucketCount()));
     loadFactorLabel = new QLabel("Load Factor: 0.00");
+    loadFactorWarning = new QLabel("");
+    loadFactorWarning->setVisible(false);
+    
     QString statsStyle = R"(
         QLabel {
             color: #34495e;
@@ -162,6 +166,7 @@ void HashMapVisualization::setupStatsAndControls()
     statsLayout->addWidget(sizeLabel);
     statsLayout->addWidget(bucketCountLabel);
     statsLayout->addWidget(loadFactorLabel);
+    statsLayout->addWidget(loadFactorWarning);
     statsLayout->addStretch();
 
     // Controls row (similar to Red Black Tree format)
@@ -421,11 +426,11 @@ void HashMapVisualization::setupStepTraceTop()
         }
     )");
 
-    // Steps tab - using StyleManager for beautiful scroll bars
+    // Steps tab - using StyleManager for beautiful scroll bars (like BST)
     stepsList = new QListWidget();
     StyleManager::instance().applyStepTraceStyle(stepsList);
 
-    // Algorithm tab - using StyleManager for beautiful scroll bars
+    // Algorithm tab - using StyleManager for beautiful scroll bars (like BST)
     algorithmList = new QListWidget();
     StyleManager::instance().applyStepTraceStyle(algorithmList);
 
@@ -608,9 +613,24 @@ void HashMapVisualization::setupStepTrace()
 
     QVBoxLayout *traceLayout = new QVBoxLayout(traceGroup);
 
-    // Steps list - using StyleManager for beautiful scroll bars
     stepsList = new QListWidget();
-    StyleManager::instance().applyStepTraceStyle(stepsList);
+    stepsList->setStyleSheet(R"(
+        QListWidget {
+            background: white;
+            border: 1px solid rgba(123, 79, 255, 0.2);
+            border-radius: 8px;
+            padding: 5px;
+            font-family: 'Segoe UI';
+            font-size: 12px;
+        }
+        QListWidget::item {
+            padding: 6px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        QListWidget::item:selected {
+            background: rgba(123, 79, 255, 0.1);
+        }
+    )");
 
     traceLayout->addWidget(stepsList);
     rightLayout->addWidget(traceGroup, 1);  // Give it more space
@@ -625,7 +645,9 @@ void HashMapVisualization::drawBuckets()
     bucketTexts.clear();
     chainTexts.clear();
 
-    const int bucketCount = hashMap->bucketCount();
+    int actualBucketCount = hashMap->bucketCount();
+    // Limit display to 16 buckets for visualization
+    const int bucketCount = qMin(actualBucketCount, 16);
     const QVector<int> bucketSizes = hashMap->bucketSizes();
     const QVector<QVector<QPair<QVariant, QVariant>>> bucketContents = hashMap->getBucketContents();
 
@@ -750,8 +772,38 @@ void HashMapVisualization::drawBuckets()
 
 void HashMapVisualization::updateVisualization()
 {
+    int currentBucketCount = hashMap->bucketCount();
+    
     drawBuckets();
     showStats();
+    
+    // Zoom out if bucket count increased (rehashing occurred)
+    if (currentBucketCount > previousBucketCount) {
+        QTimer::singleShot(100, this, &HashMapVisualization::zoomToFit);
+    }
+    
+    previousBucketCount = currentBucketCount;
+}
+
+void HashMapVisualization::zoomToFit()
+{
+    if (!scene || !visualizationView) return;
+    
+    // Get the bounding rect of all items
+    QRectF itemsRect = scene->itemsBoundingRect();
+    if (itemsRect.isEmpty()) return;
+    
+    // Add padding for better visibility
+    itemsRect.adjust(-80, -120, 80, 100);
+    
+    // Fit the view to show all buckets, allowing expansion if needed
+    visualizationView->fitInView(itemsRect, Qt::KeepAspectRatioByExpanding);
+    
+    // If the view is zoomed in too much, reset to show everything
+    QRectF viewRect = visualizationView->mapToScene(visualizationView->viewport()->rect()).boundingRect();
+    if (viewRect.width() < itemsRect.width() * 0.9 || viewRect.height() < itemsRect.height() * 0.9) {
+        visualizationView->fitInView(itemsRect, Qt::KeepAspectRatio);
+    }
 }
 
 void HashMapVisualization::updateStepTrace()
@@ -806,7 +858,123 @@ void HashMapVisualization::showStats()
     // Update main area stats only
     sizeLabel->setText(QString("Size: %1").arg(hashMap->size()));
     bucketCountLabel->setText(QString("Buckets: %1").arg(hashMap->bucketCount()));
-    loadFactorLabel->setText(QString("Load Factor: %1").arg(hashMap->loadFactor(), 0, 'f', 2));
+    
+    // Update bucket note at bottom with display limitation message
+    if (bucketNote) {
+        int bucketCount = hashMap->bucketCount();
+        if (bucketCount > 16) {
+            bucketNote->setText(QString("* Maximum buckets shown: 16 (Due to screen size limitation. Actual buckets: %1)").arg(bucketCount));
+            bucketNote->setStyleSheet(R"(
+                QLabel {
+                    color: #e67e22;
+                    font-size: 11px;
+                    font-style: italic;
+                    font-weight: bold;
+                    padding: 5px;
+                    background-color: rgba(230, 126, 34, 0.1);
+                    border-radius: 5px;
+                }
+            )");
+        } else {
+            bucketNote->setText(QString("* Maximum buckets shown: 16 (Due to screen size limitation)"));
+            bucketNote->setStyleSheet(R"(
+                QLabel {
+                    color: #7f8c8d;
+                    font-size: 11px;
+                    font-style: italic;
+                    padding: 5px;
+                }
+            )");
+        }
+    }
+    
+    // Update load factor with color coding
+    float loadFactor = hashMap->loadFactor();
+    QString loadFactorText = QString("Load Factor: %1").arg(loadFactor, 0, 'f', 2);
+    
+    // Color coding: yellow when approaching threshold (>= 0.6), red when at/above threshold (>= 0.75)
+    QString colorStyle;
+    if (loadFactor >= 0.75f) {
+        // Red when at or above threshold
+        colorStyle = R"(
+            QLabel {
+                color: #ffffff;
+                font-weight: bold;
+                font-family: 'Segoe UI';
+                font-size: 12px;
+                padding: 8px 12px;
+                background-color: rgba(231, 76, 60, 0.9);
+                border-radius: 12px;
+                border: 1px solid rgba(192, 57, 43, 0.5);
+            }
+        )";
+    } else if (loadFactor >= 0.6f) {
+        // Yellow when approaching threshold
+        colorStyle = R"(
+            QLabel {
+                color: #856404;
+                font-weight: bold;
+                font-family: 'Segoe UI';
+                font-size: 12px;
+                padding: 8px 12px;
+                background-color: rgba(255, 193, 7, 0.9);
+                border-radius: 12px;
+                border: 1px solid rgba(255, 152, 0, 0.5);
+            }
+        )";
+    } else {
+        // Normal color when below threshold
+        colorStyle = R"(
+            QLabel {
+                color: #34495e;
+                font-weight: bold;
+                font-family: 'Segoe UI';
+                font-size: 12px;
+                padding: 8px 12px;
+                background-color: rgba(74, 144, 226, 0.1);
+                border-radius: 12px;
+                border: 1px solid rgba(74, 144, 226, 0.2);
+            }
+        )";
+    }
+    
+    loadFactorLabel->setText(loadFactorText);
+    loadFactorLabel->setStyleSheet(colorStyle);
+    
+    // Update warning label
+    if (loadFactor >= 0.75f) {
+        loadFactorWarning->setText("⚠️ FULL");
+        loadFactorWarning->setStyleSheet(R"(
+            QLabel {
+                color: #ffffff;
+                font-weight: bold;
+                font-family: 'Segoe UI';
+                font-size: 11px;
+                padding: 6px 10px;
+                background-color: rgba(231, 76, 60, 0.9);
+                border-radius: 10px;
+                border: 1px solid rgba(192, 57, 43, 0.5);
+            }
+        )");
+        loadFactorWarning->setVisible(true);
+    } else if (loadFactor >= 0.6f) {
+        loadFactorWarning->setText("⚠️ NEARLY FULL");
+        loadFactorWarning->setStyleSheet(R"(
+            QLabel {
+                color: #856404;
+                font-weight: bold;
+                font-family: 'Segoe UI';
+                font-size: 11px;
+                padding: 6px 10px;
+                background-color: rgba(255, 193, 7, 0.9);
+                border-radius: 10px;
+                border: 1px solid rgba(255, 152, 0, 0.5);
+            }
+        )");
+        loadFactorWarning->setVisible(true);
+    } else {
+        loadFactorWarning->setVisible(false);
+    }
 }
 
 void HashMapVisualization::animateOperation(const QString &operation)
@@ -1082,11 +1250,12 @@ void HashMapVisualization::onClearClicked()
 
 void HashMapVisualization::onRandomizeClicked()
 {
-    // Generate random data based on selected types
+    // Generate a single random value based on selected types
     HashMap::DataType keyType = hashMap->getKeyType();
     HashMap::DataType valueType = hashMap->getValueType();
 
-    for (int i = 0; i < 5; ++i) {
+    // Generate only one random value
+    {
         QVariant key, value;
 
         // Generate random key based on type

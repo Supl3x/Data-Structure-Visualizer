@@ -22,6 +22,7 @@
 #include <QFontDatabase>
 #include <QMessageBox>
 #include <QDebug>
+#include <QRandomGenerator>
 #include <cmath>
 #include "uiutils.h"
 #include "backbutton.h"
@@ -67,6 +68,7 @@ private slots:
     void onSearchClicked();
     void onDeleteClicked();
     void onClearClicked();
+    void onRandomizeClicked();
     void onStartBFS();
     void onStartDFS();
     void onTraversalAnimationStep();
@@ -119,6 +121,7 @@ private:
     QPushButton *searchButton;
     QPushButton *deleteButton;
     QPushButton *clearButton;
+    QPushButton *randomizeButton;
     QPushButton *bfsButton;
     QPushButton *dfsButton;
     QLineEdit *inputField;

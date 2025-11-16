@@ -111,12 +111,17 @@ void TreeInsertion::setupVisualizationArea()
     clearButton = new QPushButton("Clear");
     clearButton->setFixedSize(80, 40);
     StyleManager::instance().applyOperationButtonStyle(clearButton, "#95a5a6");
+    
+    randomizeButton = new QPushButton("Random");
+    randomizeButton->setFixedSize(80, 40);
+    StyleManager::instance().applyOperationButtonStyle(randomizeButton, "#28a745");
 
     controlLayout->addWidget(inputField);
     controlLayout->addWidget(insertButton);
     controlLayout->addWidget(searchButton);
     controlLayout->addWidget(deleteButton);
     controlLayout->addWidget(clearButton);
+    controlLayout->addWidget(randomizeButton);
     controlLayout->addStretch();
 
     leftLayout->addLayout(controlLayout);
@@ -138,6 +143,7 @@ void TreeInsertion::setupVisualizationArea()
     connect(searchButton, &QPushButton::clicked, this, &TreeInsertion::onSearchClicked);
     connect(deleteButton, &QPushButton::clicked, this, &TreeInsertion::onDeleteClicked);
     connect(clearButton, &QPushButton::clicked, this, &TreeInsertion::onClearClicked);
+    connect(randomizeButton, &QPushButton::clicked, this, &TreeInsertion::onRandomizeClicked);
     connect(inputField, &QLineEdit::returnPressed, this, &TreeInsertion::onInsertClicked);
 }
 
@@ -327,6 +333,7 @@ void TreeInsertion::onInsertClicked()
 
     currentOperation = "Insert";
     addStepToHistory("➕ INSERT OPERATION");
+    addStepToHistory(QString("🔢 Adding value: %1").arg(value));
     showAlgorithm("Insert");
     animateInsertion(value);
     inputField->clear();
@@ -417,6 +424,37 @@ void TreeInsertion::onClearClicked()
     addOperationSeparator();
     updateStepTrace();
     update();
+}
+
+void TreeInsertion::onRandomizeClicked()
+{
+    if (isAnimating) {
+        QMessageBox::warning(this, "Animation in Progress",
+                             "Please wait for the current animation to complete.");
+        return;
+    }
+
+    // Generate a single random value between 1 and 100
+    int randomValue = QRandomGenerator::global()->bounded(1, 101);
+    
+    // Display the value being inserted in the status label and step history
+    statusLabel->setText(QString("Inserting value: %1...").arg(randomValue));
+    currentOperation = "Insert";
+    addStepToHistory("➕ INSERT OPERATION");
+    addStepToHistory(QString("🔢 Adding value: %1").arg(randomValue));
+    updateStepTrace(); // Update immediately to show the message
+    
+    // Set the input field and trigger insert
+    inputField->setText(QString::number(randomValue));
+    
+    // Now call the insertion logic directly (bypassing onInsertClicked to avoid duplicate messages)
+    bool ok;
+    int value = randomValue;
+    
+    showAlgorithm("Insert");
+    animateInsertion(value);
+    inputField->clear();
+    inputField->setFocus();
 }
 
 void TreeInsertion::insertNode(int value)

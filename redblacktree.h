@@ -23,6 +23,7 @@
 #include <QMessageBox>
 #include <QDateTime>
 #include <QDebug>
+#include <QRandomGenerator>
 #include <QGraphicsDropShadowEffect>
 #include <algorithm>
 #include "backbutton.h"
@@ -75,6 +76,7 @@ private slots:
     void onDeleteClicked();
     void onSearchClicked();
     void onClearClicked();
+    void onRandomizeClicked();
     void onViewAlgorithmClicked();
     void onAlgorithmBackClicked();
     void showInsertionAlgorithm();
@@ -148,6 +150,7 @@ private:
     QPushButton *deleteButton;
     QPushButton *searchButton;
     QPushButton *clearButton;
+    QPushButton *randomizeButton;
     QPushButton *bfsButton;
     QPushButton *dfsButton;
 
