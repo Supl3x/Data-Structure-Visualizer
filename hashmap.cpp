@@ -25,15 +25,15 @@ QString HashMap::dataTypeToString(DataType type) {
 }
 
 QString HashMap::variantToDisplayString(const QVariant &var) {
-    if (var.type() == QVariant::String) {
+    if (var.typeId() == QMetaType::QString) {
         return var.toString();
-    } else if (var.type() == QVariant::Int) {
+    } else if (var.typeId() == QMetaType::Int) {
         return QString::number(var.toInt());
-    } else if (var.type() == QVariant::Double) {
+    } else if (var.typeId() == QMetaType::Double) {
         return QString::number(var.toDouble(), 'f', 2);
     } else if (var.canConvert<float>()) {
         return QString::number(var.toFloat(), 'f', 2);
-    } else if (var.type() == QVariant::Char) {
+    } else if (var.typeId() == QMetaType::QChar) {
         return QString(var.toChar());
     }
     return var.toString();
@@ -43,24 +43,24 @@ int HashMap::indexFor(const QVariant &key, int bucketCount) const {
     size_t hashValue = 0;
 
     // Use std::hash-like behavior to mirror unordered_map hashing
-    switch (key.type()) {
-    case QVariant::String: {
+    switch (key.typeId()) {
+    case QMetaType::QString: {
         const std::string s = key.toString().toStdString();
         hashValue = std::hash<std::string>{}(s);
         break;
     }
-    case QVariant::Int: {
+    case QMetaType::Int: {
         const int v = key.toInt();
         hashValue = std::hash<int>{}(v);
         break;
     }
-    case QVariant::Double: {
+    case QMetaType::Double: {
         // QVariant stores float as double by default; both map through std::hash<double>
         const double v = key.toDouble();
         hashValue = std::hash<double>{}(v);
         break;
     }
-    case QVariant::Char: {
+    case QMetaType::QChar: {
         const QChar qc = key.toChar();
         const char c = qc.toLatin1();
         hashValue = std::hash<char>{}(c);
@@ -88,23 +88,23 @@ size_t HashMap::getHashValue(const QVariant &key) const {
     size_t hashValue = 0;
 
     // Use std::hash-like behavior to mirror unordered_map hashing
-    switch (key.type()) {
-    case QVariant::String: {
+    switch (key.typeId()) {
+    case QMetaType::QString: {
         const std::string s = key.toString().toStdString();
         hashValue = std::hash<std::string>{}(s);
         break;
     }
-    case QVariant::Int: {
+    case QMetaType::Int: {
         const int v = key.toInt();
         hashValue = std::hash<int>{}(v);
         break;
     }
-    case QVariant::Double: {
+    case QMetaType::Double: {
         const double v = key.toDouble();
         hashValue = std::hash<double>{}(v);
         break;
     }
-    case QVariant::Char: {
+    case QMetaType::QChar: {
         const QChar qc = key.toChar();
         const char c = qc.toLatin1();
         hashValue = std::hash<char>{}(c);
@@ -210,7 +210,7 @@ bool HashMap::emplaceOrAssign(const QVariant &key, const QVariant &value, bool a
     const size_t computedHash = getHashValue(key);
 
     // Show hash calculation with computed hash value
-    if (key.type() == QVariant::Int || key.type() == QVariant::Double) {
+    if (key.typeId() == QMetaType::Int || key.typeId() == QMetaType::Double) {
         addStep(QString("📊 Compute hash(%1) = %2").arg(keyStr).arg(computedHash));
         addStep(QString("📐 Calculate: %2 % %1 = %3").arg(bucketCountNow).arg(computedHash).arg(index));
     } else {
@@ -278,7 +278,7 @@ std::optional<QVariant> HashMap::get(const QVariant &key) {
     const size_t computedHash = getHashValue(key);
 
     // Show hash calculation with computed hash value
-    if (key.type() == QVariant::Int || key.type() == QVariant::Double) {
+    if (key.typeId() == QMetaType::Int || key.typeId() == QMetaType::Double) {
         addStep(QString("📊 Compute hash(%1) = %2").arg(keyStr).arg(computedHash));
         addStep(QString("📐 Calculate: %2 % %1 = %3").arg(bucketCountNow).arg(computedHash).arg(index));
     } else {
@@ -322,7 +322,7 @@ bool HashMap::erase(const QVariant &key) {
     const size_t computedHash = getHashValue(key);
 
     // Show hash calculation for delete operation with computed hash value
-    if (key.type() == QVariant::Int || key.type() == QVariant::Double) {
+    if (key.typeId() == QMetaType::Int || key.typeId() == QMetaType::Double) {
         addStep(QString("📊 Compute hash(%1) = %2").arg(keyStr).arg(computedHash));
         addStep(QString("📐 Calculate: %2 % %1 = %3").arg(bucketCountNow).arg(computedHash).arg(index));
     } else {
