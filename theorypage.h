@@ -33,6 +33,8 @@ private:
     QString getApplications();
     QString getAdvantages();
     QString getDisadvantages();
+    QString getRehashing();
+    QString getWhyHashing();
     QWidget* createInfoCard(const QString &title, const QString &content, const QString &icon);
 
     QString dsName;

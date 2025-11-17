@@ -198,17 +198,36 @@ void RedBlackTree::setupVisualizationArea()
         QPushButton:disabled { background: #cccccc; }
     )");
 
+    randomizeButton = new QPushButton("Random");
+    randomizeButton->setFixedSize(75, 35);
+    randomizeButton->setCursor(Qt::PointingHandCursor);
+    randomizeButton->setStyleSheet(R"(
+        QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 #28a745, stop:1 #34ce57);
+            color: white;
+            border: none;
+            border-radius: 17px;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        QPushButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 #218838, stop:1 #28a745);
+        }
+        QPushButton:disabled { background: #cccccc; }
+    )");
+
     // Buttons are already styled individually above
 
     // viewAlgorithmButton removed - algorithm now integrated in right panel
 
-    controlLayout->addStretch();
     controlLayout->addWidget(inputField);
     controlLayout->addWidget(insertButton);
     controlLayout->addWidget(searchButton);
     controlLayout->addWidget(deleteButton);
     controlLayout->addWidget(clearButton);
-    
+    controlLayout->addWidget(randomizeButton);
     controlLayout->addStretch();
 
     leftLayout->addLayout(controlLayout);
@@ -233,6 +252,7 @@ void RedBlackTree::setupVisualizationArea()
     connect(deleteButton, &QPushButton::clicked, this, &RedBlackTree::onDeleteClicked);
     connect(searchButton, &QPushButton::clicked, this, &RedBlackTree::onSearchClicked);
     connect(clearButton, &QPushButton::clicked, this, &RedBlackTree::onClearClicked);
+    connect(randomizeButton, &QPushButton::clicked, this, &RedBlackTree::onRandomizeClicked);
     connect(inputField, &QLineEdit::returnPressed, this, &RedBlackTree::onInsertClicked);
 }
 
@@ -1030,6 +1050,22 @@ void RedBlackTree::onClearClicked()
     addStepToHistory("🧹 Tree cleared - all nodes removed");
     addOperationSeparator();
     update();
+}
+
+void RedBlackTree::onRandomizeClicked()
+{
+    if (isAnimating) {
+        QMessageBox::warning(this, "Animation in Progress",
+                             "Please wait for the current animation to complete.");
+        return;
+    }
+
+    // Generate a single random value between 1 and 100
+    int randomValue = QRandomGenerator::global()->bounded(1, 101);
+    
+    // Set the input field and trigger insert
+    inputField->setText(QString::number(randomValue));
+    onInsertClicked();
 }
 
 void RedBlackTree::insertNode(int value)

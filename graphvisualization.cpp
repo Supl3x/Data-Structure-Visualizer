@@ -293,10 +293,30 @@ void GraphVisualization::setupVisualizationArea()
         }
     )");
 
+    randomizeButton = new QPushButton("Random");
+    randomizeButton->setFixedSize(75, 35);
+    randomizeButton->setStyleSheet(R"(
+        QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 #28a745, stop:1 #34ce57);
+            color: white;
+            border: none;
+            border-radius: 17px;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        QPushButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 #218838, stop:1 #28a745);
+        }
+        QPushButton:disabled { background: #cccccc; }
+    )");
+
     vertexLayout->addWidget(vertexInput);
     vertexLayout->addWidget(addVertexButton);
     vertexLayout->addWidget(deleteVertexButton);
     vertexLayout->addWidget(clearButton);
+    vertexLayout->addWidget(randomizeButton);
     vertexLayout->addStretch();
 
     // Second row - Edge operations
@@ -321,11 +341,31 @@ void GraphVisualization::setupVisualizationArea()
     deleteEdgeButton->setFixedSize(85, 35);
     deleteEdgeButton->setStyleSheet(deleteVertexButton->styleSheet());
 
+    randomizeEdgeButton = new QPushButton("Random Edge");
+    randomizeEdgeButton->setFixedSize(90, 35);
+    randomizeEdgeButton->setStyleSheet(R"(
+        QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 #28a745, stop:1 #34ce57);
+            color: white;
+            border: none;
+            border-radius: 17px;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        QPushButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 #218838, stop:1 #28a745);
+        }
+        QPushButton:disabled { background: #cccccc; }
+    )");
+
     edgeLayout->addWidget(edgeFromInput);
     edgeLayout->addWidget(new QLabel("→"));
     edgeLayout->addWidget(edgeToInput);
     edgeLayout->addWidget(addEdgeButton);
     edgeLayout->addWidget(deleteEdgeButton);
+    edgeLayout->addWidget(randomizeEdgeButton);
     edgeLayout->addStretch();
 
     leftLayout->addLayout(vertexLayout);
@@ -349,6 +389,8 @@ void GraphVisualization::setupVisualizationArea()
     connect(addEdgeButton, &QPushButton::clicked, this, &GraphVisualization::onAddEdgeClicked);
     connect(deleteEdgeButton, &QPushButton::clicked, this, &GraphVisualization::onDeleteEdgeClicked);
     connect(clearButton, &QPushButton::clicked, this, &GraphVisualization::onClearClicked);
+    connect(randomizeButton, &QPushButton::clicked, this, &GraphVisualization::onRandomizeClicked);
+    connect(randomizeEdgeButton, &QPushButton::clicked, this, &GraphVisualization::onRandomizeEdgeClicked);
     connect(vertexInput, &QLineEdit::returnPressed, this, &GraphVisualization::onAddVertexClicked);
 }
 
@@ -1082,6 +1124,49 @@ void GraphVisualization::onClearClicked()
     statusLabel->setText("Graph cleared! Add a vertex to begin.");
     addStepToHistory("🗑️ Entire graph cleared");
     if (canvas) canvas->update();
+}
+
+void GraphVisualization::onRandomizeClicked()
+{
+    // Generate a single random vertex ID between 1 and 100
+    int randomVertex = QRandomGenerator::global()->bounded(1, 101);
+    
+    // Set the input field and trigger add vertex
+    vertexInput->setText(QString::number(randomVertex));
+    onAddVertexClicked();
+}
+
+void GraphVisualization::onRandomizeEdgeClicked()
+{
+    // Check if graph has at least 2 vertices
+    if (nodes.size() < 2) {
+        QMessageBox::warning(this, "Insufficient Vertices", 
+                             "Please add at least 2 vertices before creating random edges.");
+        return;
+    }
+    
+    // Pick two random existing vertices
+    QVector<int> vertexIds;
+    for (const auto &node : nodes) {
+        vertexIds.append(node.id);
+    }
+    
+    // Shuffle and pick two different vertices
+    int fromIdx = QRandomGenerator::global()->bounded(vertexIds.size());
+    int toIdx = QRandomGenerator::global()->bounded(vertexIds.size());
+    
+    // Ensure they're different
+    while (toIdx == fromIdx && vertexIds.size() > 1) {
+        toIdx = QRandomGenerator::global()->bounded(vertexIds.size());
+    }
+    
+    int fromVertex = vertexIds[fromIdx];
+    int toVertex = vertexIds[toIdx];
+    
+    // Set the input fields and trigger add edge
+    edgeFromInput->setText(QString::number(fromVertex));
+    edgeToInput->setText(QString::number(toVertex));
+    onAddEdgeClicked();
 }
 
 void GraphVisualization::onStartBFS()

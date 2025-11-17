@@ -78,6 +78,7 @@ private:
     void animateSearchResult(const QString &key, bool found);
     void showAlgorithm(const QString &operation);
     void showStats();
+    void zoomToFit();
     QVariant convertStringToVariant(const QString &str, HashMap::DataType type);
 
     // UI Components
@@ -110,6 +111,8 @@ private:
     QLabel *sizeLabel;
     QLabel *bucketCountLabel;
     QLabel *loadFactorLabel;
+    QLabel *loadFactorWarning;  // Warning label for load factor status
+    QLabel *bucketNote;
 
     // Step trace with tabs
     QGroupBox *traceGroup;
@@ -126,6 +129,9 @@ private:
     // Animation
     QTimer *animationTimer;
     QGraphicsRectItem *highlightRect;
+    
+    // Track previous bucket count for zoom detection
+    int previousBucketCount;
 
     // Constants
     static const int BUCKET_WIDTH;

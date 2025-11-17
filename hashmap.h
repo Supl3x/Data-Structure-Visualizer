@@ -56,6 +56,8 @@ public:
     static QString variantToDisplayString(const QVariant &var);
     // Hash function (public for visualization)
     int indexFor(const QVariant &key, int bucketCount) const;
+    // Get computed hash value (for display)
+    size_t getHashValue(const QVariant &key) const;
 
 private:
     struct Node {
@@ -69,6 +71,7 @@ private:
     QVector<QString> stepHistory_;  // Persistent history
     DataType keyType_ = STRING;
     DataType valueType_ = STRING;
+    bool hasRehashed_ = false;  // Track if rehashing has occurred (only once)
 
     void addStep(const QString &text);
     bool emplaceOrAssign(const QVariant &key, const QVariant &value, bool assignIfExists);
